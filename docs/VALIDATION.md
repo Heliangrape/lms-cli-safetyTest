@@ -1,5 +1,14 @@
 # Validation record — lms-cli
 
+## 0.4.2 release preflight — 2026-09-29
+
+Environment: macOS arm64, official checksum-verified Node.js v24.20.0 in an isolated build directory. Version metadata is aligned across the package, lockfile, CLI and plugin.
+
+- TypeScript check, build and **97 automated tests** passed; no failures or skipped tests. Production dependency audit reported **0 known vulnerabilities** at verification time.
+- The implementation commit `1a1b33b` passed all three Verify and build jobs (macOS, Ubuntu and Windows), including target-platform bundles and isolated installation checks, in run `36519467569`. The versioned release commit requires its own successful CI run before release publication.
+- The local build uses the official development runtime, not the already distributor-signed installed Node binary: Hardened Runtime correctly refuses to load unrelated development native modules into that signed runtime. No signature or system security setting was disabled to run the source tests.
+- Release artifacts must be built from the versioned source, match their SHA-256 entries, and pass installation checks. macOS distributables require Developer ID signatures and accepted Apple notarization. Artifact-specific results are recorded with the GitHub Release; this preflight record is not itself evidence that a new Release is public.
+
 ## Experimental school sign-in and Blackboard to-do — local branch, 2026-09-29
 
 Environment: macOS arm64, Node.js v25.7.0. The fixes were ported onto main commit `8933a80`, retaining the 0.4.1 version, school discovery, setup/update behavior, and signed-release workflows. This is source-branch validation, not a newly published release or installer.
