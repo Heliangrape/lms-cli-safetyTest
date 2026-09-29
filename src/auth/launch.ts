@@ -106,7 +106,7 @@ export function startLogin(p: Profile, platform?: Platform) {
     state: job.state,
     profile: p.id,
     platforms: selected,
-    note: 'Complete your school login and MFA in the authorization app. No password/Cookie copying is needed. Authorization completes when encrypted credentials are verified in the local vault.',
+    note: 'The authorization app restores saved login preferences: remember-password fills only; automatic login fills and submits once. Complete any remaining school verification there. Cancel with Esc or the cancel button. No password/Cookie copying is needed; completion requires locally verified encrypted credentials.',
   };
 }
 

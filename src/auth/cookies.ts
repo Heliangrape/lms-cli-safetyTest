@@ -1,7 +1,7 @@
 import type { Platform } from '../config.js';
 import { getPlatform } from '../platforms/registry.js';
 export interface LoginCookie { name: string; value: string; domain?: string; path?: string; secure?: boolean; expirationDate?: number; }
-/** Only explicitly reviewed LMS cookies, valid for the exact configured host/API path. Never persist IdP cookies. */
+/** Only explicitly reviewed LMS cookies, valid for the exact configured host/API path, enter the encrypted API session record. */
 export function cookieHeader(platform: Platform, origin: string, cookies: LoginCookie[]): string | null {
   const host = new URL(origin).hostname;
   const policy = getPlatform(platform).login;

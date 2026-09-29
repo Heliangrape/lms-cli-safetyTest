@@ -968,7 +968,15 @@ export class BlackboardClient {
     const res = await this.http.json<BbTodoResponse>({
       path: expand('todoItems'),
       query: { since: opts.since, until: opts.until },
+      retries: 0, // A broken widget must not consume the whole MCP timeout.
+      timeoutMs: 8000,
     });
+    const keys = ['overdueItems', 'dueTodayItems', 'futureDueItems'] as const;
+    if (!res || !keys.some(k => Array.isArray(res[k])) ||
+        keys.some(k => res[k] !== undefined && (!Array.isArray(res[k]) ||
+          !res[k]!.every(row => row && typeof row === 'object' && !Array.isArray(row))))) {
+      throw new BlackboardError('UNSUPPORTED', 'The Blackboard to-do response format is unsupported.');
+    }
     const tag = (rows: BbTodoItem[] | undefined, bucket: BbTodoItem['_bucket']): BbTodoItem[] =>
       (rows ?? []).map((r) => ({
         ...r,
@@ -980,6 +988,39 @@ export class BlackboardClient {
       ...tag(res?.dueTodayItems, 'dueToday'),
       ...tag(res?.futureDueItems, 'upcoming'),
     ];
+  }
+
+  /**
+   * The Ultra widget rejects requests whose window is longer than the tenant's
+   * configured maximum (PolyU currently allows 16 days). Split larger user
+   * windows into valid requests and merge the real to-do responses. We do not
+   * substitute calendar events: a calendar event is not proof of an
+   * assignment, submission state, or missing work.
+   */
+  async listTodoWithCoverage(opts: { since: string; until: string }) {
+    const start = Date.parse(opts.since);
+    const end = Date.parse(opts.until);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+      throw new BlackboardError('BAD_INPUT', 'The Blackboard to-do date window is invalid.');
+    }
+    // PolyU's tenant currently rejects spans over 16 days with HTTP 400. A
+    // conservative 15-day chunk also works on tenants with a 16-day inclusive
+    // limit, while keeping the same endpoint and response semantics everywhere.
+    const maxSpan = 15 * 86_400_000;
+    const items: BbTodoItem[] = [];
+    const seen = new Set<string>();
+    let cursor = start;
+    while (cursor <= end) {
+      const chunkEnd = Math.min(end, cursor + maxSpan);
+      const chunk = await this.listTodo({ since: new Date(cursor).toISOString(), until: new Date(chunkEnd).toISOString() });
+      for (const item of chunk) {
+        const key = JSON.stringify([item._bucket, item.dueDate, item.column?.id, item.column?.courseId, item.title]);
+        if (!seen.has(key)) { seen.add(key); items.push(item); }
+      }
+      if (chunkEnd >= end) break;
+      cursor = chunkEnd;
+    }
+    return { items, source: 'todo' as const, warnings: [] as string[] };
   }
 
   // ── messages ────────────────────────────────────────────────────────────

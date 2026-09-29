@@ -37,14 +37,15 @@ export function registerDeadlineTools(server: McpServer): void {
       const since = new Date(now.getTime() - (args.lookBackDays ?? 30) * 86_400_000).toISOString();
       const until = new Date(now.getTime() + (args.days ?? 14) * 86_400_000).toISOString();
 
-      const items = await client.listTodo({ since, until });
+      const { items, warnings } = await client.listTodoWithCoverage({ since, until });
+      const coverage = warnings.join('\n');
 
       // Resolve course names once, from the membership list already cached.
       await client.listCourses({ availableOnly: false }).catch(() => []);
       const named = await Promise.all(
         items.map(async (i) => ({
           ...i,
-          _courseName: i._courseId ? await client.courseName(i._courseId) : undefined,
+          _courseName: i._courseName ?? (i._courseId ? await client.courseName(i._courseId) : undefined),
         })),
       );
 
@@ -74,6 +75,7 @@ export function registerDeadlineTools(server: McpServer): void {
       return text(
         [
           '# Blackboard to-do',
+          coverage,
           '',
           `Window: ${when(since)} to ${when(until)}`,
           overdue.length ? `\n## Overdue (${overdue.length})\n\n${table(overdue)}` : '',

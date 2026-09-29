@@ -9,6 +9,7 @@ import { platformFor } from './policy.js';
 import { authStatus, startLogin, finishLogin } from './auth/launch.js';
 import { vault } from './vault.js';
 import { validateInWorker } from './auth/validate.js';
+import { LoginStore } from './auth/preferences.js';
 import { exportCalendar, listItems, upsertItems } from './items.js';
 import { ask } from './ask.js';
 import { getPlatform, platformDefinitions, platformIds } from './platforms/registry.js';
@@ -111,6 +112,24 @@ auth.command('token').description('Import an institution-permitted Canvas token 
   let value = ''; for await (const c of process.stdin) { value += c; if (value.length > 16384) throw new LmsError('BAD_INPUT', 'Token is too long.'); }
   out(await validateInWorker(await getProfile(profileId()), 'canvas', { kind: 'token', value: value.trim() }));
 });
+auth.command('totp').description('Import an institution-provided TOTP seed privately; the seed stays encrypted on this device')
+  .requiredOption('--platform <name>', `${platformIds.join(' or ')}`)
+  .option('--stdin', 'Read the raw seed or otpauth:// URI from stdin')
+  .option('--clear', 'Remove the locally saved TOTP seed')
+  .option('--yes', 'Confirm removing the locally saved TOTP seed')
+  .action(async o => {
+    const platform = Platform.parse(o.platform); const p = await getProfile(profileId());
+    if (!p[platform]) throw new LmsError('NOT_CONFIGURED', 'That platform is not configured for this profile.');
+    const store = new LoginStore();
+    if (o.clear) {
+      if (!o.yes) throw new LmsError('CONFIRMATION_REQUIRED', 'Pass --yes to remove the locally saved TOTP seed.');
+      await store.clearTotp(p, platform); return out({ ok: true, profile: p.id, platform, totpConfigured: false });
+    }
+    if (!o.stdin || process.stdin.isTTY) throw new LmsError('BAD_INPUT', 'Provide the seed through stdin; do not put it in shell arguments.');
+    let value = ''; for await (const c of process.stdin) { value += c; if (value.length > 4096) throw new LmsError('BAD_INPUT', 'TOTP seed is too long.'); }
+    await store.setTotp(p, platform, value.trim());
+    out({ ok: true, profile: p.id, platform, totpConfigured: true, note: '仅在本机学校登录窗口自动填入验证码；CAPTCHA、推送确认和跨域 MFA 仍需手动完成。' });
+  });
 auth.command('logout').requiredOption('--platform <name>', 'Remove authorization for this platform only').requiredOption('--yes', 'Confirm local credential removal; school session is not remotely revoked').action(async o => { const p = await getProfile(profileId()); const platform = Platform.parse(o.platform); await vault.remove(p, platform); out({ ok: true, profile: p.id, platform, locallySignedOut: true, remoteSessionRevoked: false }); });
 
 program.command('tools').description('Discover tools; pass --name to inspect its exact JSON schema').option('--platform <name>').option('--query <text>').option('--name <tool>').action(async o => out(await withBackend(profileId(), (b, p) => b.catalog(p, { ...o, platform: o.platform ? Platform.parse(o.platform) : undefined }))));

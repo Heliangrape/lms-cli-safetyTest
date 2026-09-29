@@ -77,8 +77,15 @@ export class Vault {
       const e: Envelope = { version: 1, generation, iv: iv.toString('base64'), tag: cipher.getAuthTag().toString('base64'), data: data.toString('base64') };
       await ensureHome(); await atomicWrite(this.path(p, slot), JSON.stringify(e)); return generation;
   }
-  async remove(p: Profile, slot: Platform) {
-    await locked(() => rm(this.path(p, slot), { force: true }));
+  async remove(p: Profile, slot: string) {
+    await locked(async () => {
+      // Logging out also revokes consent to saved-password / automatic login.
+      if (platformIds.includes(slot as Platform)) {
+        await rm(this.path(p, `login:${slot}`), { force: true });
+        await rm(this.path(p, `totp:${slot}`), { force: true });
+      }
+      await rm(this.path(p, slot), { force: true });
+    });
   }
 }
 export const vault = new Vault();

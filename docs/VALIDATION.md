@@ -1,5 +1,16 @@
 # Validation record — lms-cli
 
+## Experimental school sign-in and Blackboard to-do — local branch, 2026-09-29
+
+Environment: macOS arm64, Node.js v25.7.0. The fixes were ported onto main commit `8933a80`, retaining the 0.4.1 version, school discovery, setup/update behavior, and signed-release workflows. This is source-branch validation, not a newly published release or installer.
+
+- TypeScript check and build: passed. Automated tests: **97 passed, 0 failed, 0 skipped**. Coverage includes opt-in encrypted login preferences, profile/platform/form isolation, split username/password steps, logout revocation, TOTP vectors, and real-to-do window splitting with error propagation.
+- `npm run verify:auth`: all four offline Electron suites passed. Synthetic fixtures covered password fill without submission, one-shot automatic login, ADFS school-script buttons, cancellation during pending fill/submit, user takeover, Escape/cancel, popup cleanup, live opt-in/opt-out, compact single-window layout, resizing, origin/form guards, and renderer isolation. No real school credentials or network responses were used for these branch checks.
+- `npm pack --dry-run --ignore-scripts --json`: passed; all 100 expected package entries were inspected. Required login preloads, school view, login store and TOTP modules are included; no vault, profiles, environment files or dependency directory is packaged.
+- Prior source-worktree PolyU acceptance on the same date identified the Blackboard date-window limit and confirmed that the repaired 30-day look-back plus 14-day forward query returned two real to-do items. That live-school check was not repeated during this branch port; Canvas and other-school compatibility are not certified by the offline checks above.
+
+Remember-password and automatic-login remain experimental and default off. Schools retain their native sign-in pages and authentication policies; CAPTCHA, push MFA and device checks are not bypassed. New signed installers, cross-platform acceptance and a published Release remain separate work.
+
 ## 0.4.0 CLI installation, discovery and updates — historical baseline, 2026-09-21
 
 Environment: macOS arm64, Node.js v25.7.0. Tests used temporary state and synthetic profiles; no school credentials or course data were accessed.
